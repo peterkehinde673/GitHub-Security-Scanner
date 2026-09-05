@@ -9,6 +9,12 @@ import { sendSafeError } from './backend/api/errors';
 export const app = express();
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) || 3000 : 3000;
 
+// Trust single reverse proxy hop in production environments (Render/Cloud Run/Nginx)
+// Setting to 1 ensures only the immediate front-facing proxy is trusted, preventing X-Forwarded-For spoofing
+if (process.env.NODE_ENV === 'production' || process.env.RENDER) {
+  app.set('trust proxy', 1);
+}
+
 // Hardened CORS policy
 app.use(cors(getCorsOptions()));
 
