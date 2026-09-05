@@ -12,10 +12,15 @@ export function normalizeToOrigin(input: string): string | null {
 
   try {
     const url = new URL(trimmed);
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+      return null;
+    }
+    if (url.origin === 'null' || !url.origin) {
+      return null;
+    }
     return url.origin;
   } catch {
-    // If not a standard URL, strip trailing slashes
-    return trimmed.replace(/\/+$/, '');
+    return null;
   }
 }
 

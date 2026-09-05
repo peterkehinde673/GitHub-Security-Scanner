@@ -50,8 +50,8 @@ const SECRET_PATTERNS: SecretPattern[] = [
   // Slack Webhook URL
   {
     name: 'Slack Webhook',
-    regex: /https:\/\/hooks\.slack\.com\/services\/T[a-zA-Z0-9_]{8}\/B[a-zA-Z0-9_]{8,12}\/[a-zA-Z0-9_]{24}/g,
-    mask: () => 'https://hooks.slack.com/services/T********/B********/************************',
+    regex: /https:\/\/hooks\.(?:slack\.com|example\.invalid)\/services\/T[a-zA-Z0-9_]{8}\/B[a-zA-Z0-9_]{8,12}\/[a-zA-Z0-9_]{24}/g,
+    mask: () => 'https://hooks.example.invalid/services/T********/B********/************************',
   },
   // Slack Token
   {

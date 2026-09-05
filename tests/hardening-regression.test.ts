@@ -34,7 +34,7 @@ describe('Hardening Regression Test Suite', () => {
         endLine: 10,
         description: 'Found raw token ghp_1234567890abcdefghijklmnopqrstuvwxyz12',
         recommendation: 'Rotate key AKIAIOSFODNN7EXAMPLE immediately',
-        impact: 'Attacker accessed slack webhook https://example.invalid/slack-webhook',
+        impact: 'Attacker accessed slack webhook https://hooks.example.invalid/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX',
         snippet: 'const awsKey = "AKIAIOSFODNN7EXAMPLE";',
         remediationSnippet: 'const awsKey = process.env.AWS_KEY;',
       };
@@ -47,7 +47,7 @@ describe('Hardening Regression Test Suite', () => {
       assert.strictEqual(sanitized.title.includes('AKIA****************'), true);
       assert.strictEqual(sanitized.description.includes('ghp_1234567890abcdefghijklmnopqrstuvwxyz12'), false);
       assert.strictEqual(sanitized.recommendation.includes('AKIAIOSFODNN7EXAMPLE'), false);
-      assert.strictEqual(sanitized.impact?.includes('https://example.invalid/slack-webhook'), false);
+      assert.strictEqual(sanitized.impact?.includes('https://hooks.example.invalid/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX'), false);
     });
 
     it('redacts private key blocks from evidence snippets', () => {
@@ -335,6 +335,10 @@ describe('Hardening Regression Test Suite', () => {
       assert.strictEqual(normalizeToOrigin('http://localhost:3000/'), 'http://localhost:3000');
       assert.strictEqual(normalizeToOrigin('*'), '*');
       assert.strictEqual(normalizeToOrigin(''), null);
+      assert.strictEqual(normalizeToOrigin('javascript:alert(1)'), null);
+      assert.strictEqual(normalizeToOrigin('data:text/html,evil'), null);
+      assert.strictEqual(normalizeToOrigin('file:///etc/passwd'), null);
+      assert.strictEqual(normalizeToOrigin('not-a-url'), null);
     });
 
     it('rejects malicious lookalike origins that attempt startsWith bypasses', (t, done) => {

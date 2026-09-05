@@ -23,9 +23,13 @@ app.use((_req: Request, res: Response, next: NextFunction) => {
 // Hardened JSON body limit (12MB ceiling to protect memory while supporting 10MB scan payloads)
 app.use(express.json({ limit: '12mb' }));
 
-// Safe JSON parsing error handler
+// Safe middleware error handler (JSON parse errors, CORS origin rejections)
 app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
   if (err) {
+    if (err.message && typeof err.message === 'string' && (err.message.includes('CORS') || err.message.includes('Cross-origin'))) {
+      sendSafeError(res, 403, 'Cross-origin request blocked by CORS policy.');
+      return;
+    }
     const statusCode = err.status || err.statusCode || 400;
     const message =
       statusCode === 413
