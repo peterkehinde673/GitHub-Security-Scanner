@@ -1,0 +1,6 @@
+{
+  "name": "AI Code Security Checker",
+  "description": "AI-powered GitHub and code security scanner that analyzes repositories, snippets, and configs for vulnerabilities, exposed secrets, and security flaws.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
