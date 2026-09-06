@@ -1,8 +1,8 @@
 # GitHub Security Scanner
 
+[![CI](https://github.com/peterkehinde673/GitHub-Security-Scanner/actions/workflows/ci.yml/badge.svg)](https://github.com/peterkehinde673/GitHub-Security-Scanner/actions/workflows/ci.yml)
 [![Live Scanner](https://img.shields.io/badge/Live%20Scanner-Open-blue?logo=render)](https://github-security-scanner.onrender.com/)
 [![GitHub Action](https://img.shields.io/badge/GitHub%20Action-Marketplace-blue?logo=githubactions)](https://github.com/marketplace/actions/github-security-scanner)
-[![License](https://img.shields.io/badge/license-not%20specified-lightgrey)](https://github.com/peterkehinde673/GitHub-Security-Scanner)
 
 **Scan a public GitHub repository for security risks in seconds — without executing its code.**
 
