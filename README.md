@@ -1,110 +1,313 @@
-# GitHub Security Scanner & Vulnerability Analyzer
+# GitHub Security Scanner
 
-A modular, high-performance security scanner and code analyzer designed to scan public GitHub repositories for hardcoded secrets, dangerous code patterns (SAST), software supply-chain vulnerabilities, and infrastructure misconfigurations with deterministic scoring and automated remediation suggestions.
+[![Live Scanner](https://img.shields.io/badge/Live%20Scanner-Open-blue?logo=render)](https://github-security-scanner.onrender.com/)
+[![GitHub Action](https://img.shields.io/badge/GitHub%20Action-Marketplace-blue?logo=githubactions)](https://github.com/marketplace/actions/github-security-scanner)
+[![License](https://img.shields.io/badge/license-not%20specified-lightgrey)](https://github.com/peterkehinde673/GitHub-Security-Scanner)
 
----
+**Scan a public GitHub repository for security risks in seconds — without executing its code.**
 
-## 🛡️ Security Engine Architecture
+GitHub Security Scanner is a modular static-analysis service that checks public repositories for exposed secrets, dangerous code patterns, dependency risks, and security configuration issues. It produces a deterministic **0–100 security score**, severity-ranked findings, evidence, and remediation guidance.
 
-The scanner operates entirely without executing untrusted repository code. It processes files through isolated static analysis modules:
+### Try it
 
-1. **Secret Scanner (`backend/scanner/secrets/`)**:
-   - Regex and entropy-based identification for AWS keys, GitHub tokens, OpenAI keys, Slack webhooks, Private keys, JWT tokens, and database connection strings.
-   - Shannon Entropy verification with false-positive suppression for mock/sample tokens and documentation placeholders.
-   - Automated evidence masking (e.g. `AKIA****************`) to protect secrets in reports.
+**Web scanner:** https://github-security-scanner.onrender.com/
 
-2. **Code Pattern Scanner / SAST (`backend/scanner/code-patterns/`)**:
-   - OWASP Top 10 detection covering SQL Injection, OS Command Injection, React XSS (`dangerouslySetInnerHTML`), Path Traversal, Insecure Python Deserialization (`pickle`), and Disabled TLS verification (`rejectUnauthorized: false`).
-
-3. **Dependency & Supply Chain Scanner (`backend/scanner/dependencies/`)**:
-   - Manifest parsers for `package.json`, `requirements.txt`, `Cargo.toml`, `go.mod`, `pom.xml`, and `Gemfile`.
-   - Identification of wildcard versions (`*`), unpinned requirements, and curated known CVE advisory cross-referencing (e.g. prototype pollution, log4j patterns).
-
-4. **Configuration & Infrastructure Scanner (`backend/scanner/configuration/`)**:
-   - Security auditing for Dockerfiles (root user execution), production debug flags, permissive CORS headers (`*`), and committed `.env` secrets.
-
-5. **Deterministic Scoring Engine (`backend/scanner/scoring/`)**:
-   - Mathematical penalty deduction: Critical (-25 pts), High (-15 pts), Medium (-8 pts), Low (-3 pts).
-   - Grade boundaries (A+, A, B, C, D, F) with clean code baseline (100 pts) and floor at 0.
+**GitHub Action:** https://github.com/marketplace/actions/github-security-scanner
 
 ---
 
-## 🔒 Security Hardening & Defenses
+## What it checks
 
-The application implements defense-in-depth security hardening across API boundaries:
+| Area | What it looks for |
+| --- | --- |
+| 🔐 Secrets | AWS keys, GitHub tokens, OpenAI keys, Slack webhooks, private keys, JWTs, database connection strings, entropy-based secret candidates |
+| ⚠️ Code patterns / SAST | SQL injection, OS command injection, React XSS, path traversal, Python `pickle` deserialization, disabled TLS verification |
+| 📦 Dependencies | Supported manifest files, unpinned/wildcard versions, and curated known-advisory matches |
+| 🛡️ Configuration | Docker root execution, production debug flags, permissive CORS, committed `.env` files |
+| 📊 Scoring | Deterministic 0–100 score with severity deductions and letter grade |
 
-1. **Strict Input Boundaries & Payloads**:
-   - `/api/scan` limits: Maximum 200 files per scan, 500 KB per individual file (calculated via actual UTF-8 byte length), and 10 MB total scan payload ceiling.
-   - Request body parser ceiling set to 12 MB with safe JSON error boundaries.
-2. **Logical Path Traversal Protection**:
-   - All file paths are strictly validated before normalization. Absolute paths (`/`, `\`), Windows drive prefixes (`C:\`), directory traversal sequences (`../`, `..\`), and null bytes (`\0`) are immediately rejected.
-3. **Duplicate Path Deduplication**:
-   - Identical logical file paths are safely deduplicated to the first valid occurrence, preventing CPU and memory exhaustion attacks.
-4. **Outbound GitHub Fetch Protections**:
-   - 10–12 second timeout limits on all outbound GitHub metadata, tree, and raw file fetches.
-   - Git tree processing capped at 10,000 items with graceful handling of malformed nodes.
-   - Bounded concurrency worker pool (6 simultaneous downloads) preventing socket starvation.
-   - Per-file streaming byte-size ceiling (500 KB) aborting oversized downloads early.
-5. **In-Memory Rate Limiting**:
-   - Single-instance in-memory rate limiting keyed by client IP with automated 60-second window expiration.
-   - Default: 30 requests/min for expensive scan/fetch/chat routes, 60 requests/min for metadata routes. Health check remains responsive.
-6. **Configurable CORS & Information Disclosure Safeguards**:
-   - Environment-driven `CORS_ORIGIN` allowlisting (same-origin default in production).
-   - Safe error handling (`sendSafeError`) preventing exposure of internal stack traces, filesystem paths, or credentials.
+The scanner is designed for **static analysis**. It does **not** execute code from the repository and does not install dependencies from the repository being scanned.
+
+> **Important:** This is a lightweight security scanner, not a replacement for a full penetration test, expert code review, CodeQL, or an enterprise security platform.
 
 ---
 
-## 🧪 Authoritative Test Architecture (`node:test`)
+## Quick start — web
 
-The project uses a single authoritative test suite defined with standard `node:test` (`describe`/`it`) and `node:assert` across `tests/*.test.ts`:
+1. Open the hosted scanner: https://github-security-scanner.onrender.com/
+2. Enter a **public GitHub repository URL**.
+3. Start the scan.
+4. Review the score, findings, evidence, and remediation guidance.
 
-- `tests/secrets.test.ts` (6 tests: AWS, GitHub tokens, OpenAI keys, masking, placeholder suppression, Shannon entropy)
-- `tests/patterns.test.ts` (5 tests: SQL injection, OS command injection, React XSS, Python pickle deserialization, disabled TLS)
-- `tests/dependencies.test.ts` (4 tests: package.json wildcards, requirements.txt pinning, Cargo.toml wildcards, CVE advisories)
-- `tests/configuration.test.ts` (4 tests: Dockerfile root user, debug mode, permissive CORS, committed `.env` secrets)
-- `tests/scoring.test.ts` (3 tests: clean baseline scoring, critical deduction calculation, score flooring/grading)
-- `tests/security-hardening.test.ts` (19 tests: limits on file count, oversized files, total payload size, malformed objects, absolute paths, traversal, Windows traversal, null bytes, duplicate deduplication, maxFiles clamping, tree filtering, rate limiting, rate limiter expiration, CORS, error disclosure, target metadata, Git ref validation, legitimate file scans, repository query formats)
-
-**Total: 41 tests across 6 suites (100% passing).**
+No checkout or local setup is required for a web scan.
 
 ---
 
-## 🚀 Commands & Verification
+## Quick start — GitHub Actions
 
-### 1. Run Authoritative Test Suite
-Executes all 41 `describe`/`it` tests directly via `node:test`:
-```bash
-# Node.js / Linux / Render CI
-npm test
+Install the companion Action from GitHub Marketplace:
 
-# Bun runtime
-bun test
+https://github.com/marketplace/actions/github-security-scanner
+
+Add this workflow to a repository:
+
+```yaml
+name: Security Scan
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Scan repository
+        uses: peterkehinde673/github-security-scanner-action@v1
 ```
 
-### 2. Type Checking & Linting
-Type-checks the full TypeScript codebase:
-```bash
-npm run lint
+The Action scans the public repository that triggered the workflow by default. A checkout step is not required because the scanner retrieves repository data through GitHub's public repository APIs.
+
+### Fail CI on serious findings
+
+You can choose the minimum severity that fails the workflow:
+
+```yaml
+- name: Scan repository
+  uses: peterkehinde673/github-security-scanner-action@v1
+  with:
+    fail-on: high
 ```
 
-### 3. Build Production Bundle
-Builds the Vite client-side bundle and compiled server:
-```bash
-npm run build
+Supported values:
+
+- `critical`
+- `high` (default)
+- `medium`
+- `low`
+
+The Action also exposes `score` and `findings` outputs for downstream workflow steps.
+
+> The hosted Action currently supports **public repositories only**. Do not provide private-repository credentials or secrets to the scanner.
+
+---
+
+## Architecture
+
+```text
+Public GitHub repository
+          │
+          ▼
+   Repository fetch layer
+          │
+          ├── bounded file selection
+          ├── path validation
+          ├── size limits
+          └── timeout/concurrency controls
+          │
+          ▼
+      Scan pipeline
+          │
+    ┌─────┼─────────┬────────────┐
+    ▼     ▼         ▼            ▼
+ Secrets SAST   Dependencies  Configuration
+    │     │         │            │
+    └─────┴─────────┴────────────┘
+                  │
+                  ▼
+        Deterministic scoring
+                  │
+                  ▼
+       Findings + remediation
 ```
 
-### 4. Start Development Server
+The backend is organized into independent scanner modules so individual detection areas can evolve without turning the application into one large scanning routine.
+
+---
+
+## Security hardening
+
+The scanner treats repository content as **untrusted input** and applies multiple defensive limits before analysis.
+
+- Request JSON body limit: **12 MB**.
+- Scan limit: **200 files** per request.
+- Individual file limit: **500 KB** based on actual UTF-8 bytes.
+- Total scan payload limit: **10 MB**.
+- GitHub tree candidate limit: **10,000 items** with explicit truncation/coverage reporting.
+- GitHub raw-file downloads use timeouts and streaming byte limits.
+- Repository file downloads use bounded concurrency.
+- File paths are validated against absolute paths, POSIX/Windows traversal, drive prefixes, control characters, and null bytes.
+- Duplicate logical paths are deduplicated.
+- Expensive API routes use in-memory rate limiting.
+- Production CORS is environment-configured and fail-closed when no origin is configured.
+- Errors are sanitized so internal stack traces, filesystem paths, and credentials are not returned to clients.
+- Gemini-powered explanations treat repository content as untrusted data and apply prompt-boundary protections.
+
+These controls reduce common abuse and resource-exhaustion risks, but no application can guarantee perfect protection against every malicious input.
+
+---
+
+## Detection engine
+
+### Secret scanner
+
+Uses pattern matching plus entropy checks to identify likely credentials while attempting to suppress obvious placeholders and sample values. Evidence is masked before it is shown in reports.
+
+### Code-pattern scanner
+
+Provides targeted, regex-based SAST-style detections for high-risk patterns. It is intentionally lightweight and should not be described as a complete AST-based vulnerability analysis engine.
+
+### Dependency scanner
+
+Parses supported dependency manifests and checks for unsafe version specifications and a curated set of known advisory patterns. It does not run the target repository's package manager and does not install target dependencies.
+
+### Configuration scanner
+
+Checks selected infrastructure and application configuration patterns such as Docker privilege issues, debug settings, permissive CORS, and committed environment files.
+
+### Scoring
+
+The baseline score starts at **100** and applies deterministic severity penalties:
+
+- Critical: `-25`
+- High: `-15`
+- Medium: `-8`
+- Low: `-3`
+
+The score is bounded to `0–100` and accompanied by severity counts and a letter grade.
+
+---
+
+## API
+
+The backend exposes the scanner service through API routes used by the web application and GitHub Action integration, including:
+
+- `GET /api/health` — health check
+- `POST /api/scan` — scan supplied repository file data
+- GitHub repository metadata/file retrieval routes used by the Action and web scanner
+- AppSec Copilot chat routes when Gemini is configured
+
+The API applies validation, payload limits, rate limiting, and safe error handling at its boundaries.
+
+---
+
+## Local development
+
+### Requirements
+
+- Node.js 20+
+- npm
+
+Install dependencies:
+
+```bash
+npm install
+```
+
+Start the development server:
+
 ```bash
 npm run dev
 ```
 
+Run the authoritative test suite:
+
+```bash
+npm test
+```
+
+Type-check the project:
+
+```bash
+npm run lint
+```
+
+Build the production client and server bundle:
+
+```bash
+npm run build
+```
+
+Start the production bundle:
+
+```bash
+npm start
+```
+
 ---
 
-## ⚙️ Environment Variables
+## Environment variables
 
-See `.env.example` for reference:
-- `GEMINI_API_KEY`: Google GenAI API key for the AppSec Copilot.
-- `GITHUB_TOKEN`: Optional GitHub personal access token for higher API rate limits.
-- `CORS_ORIGIN`: Allowed origins (e.g. `https://my-app.onrender.com,https://example.com`). Defaults to permissive in dev and strict same-origin in production.
-- `RATE_LIMIT_WINDOW_MS`: Rate limiting window in milliseconds (default: `60000`).
-- `RATE_LIMIT_MAX_REQUESTS`: Rate limiting maximum requests per window (default: `60`).
+See `.env.example`.
+
+| Variable | Purpose |
+| --- | --- |
+| `GEMINI_API_KEY` | Optional Google GenAI key for AppSec Copilot explanations |
+| `GITHUB_TOKEN` | Optional GitHub token for higher GitHub API rate limits |
+| `CORS_ORIGIN` | Allowed browser origins in production |
+| `RATE_LIMIT_WINDOW_MS` | Rate-limit window; defaults to 60 seconds |
+| `RATE_LIMIT_MAX_REQUESTS` | General rate-limit ceiling |
+| `PORT` | HTTP port; Render supplies this automatically |
+
+Do not commit real credentials, tokens, or private keys. Use environment variables or your deployment platform's secret manager.
+
+---
+
+## Testing
+
+The repository includes Node/TypeScript tests covering:
+
+- secret detection and evidence masking
+- SAST-style code-pattern detection
+- dependency checks
+- configuration checks
+- deterministic scoring
+- API payload and file-size limits
+- path traversal defenses
+- duplicate-path handling
+- GitHub fetch controls
+- rate limiting
+- CORS behavior
+- safe error handling
+- target metadata and Git reference validation
+
+Run the complete suite with:
+
+```bash
+npm test
+```
+
+The CI workflow also runs tests, type-checking, and the production build on pushes and pull requests.
+
+---
+
+## Project repositories
+
+**Scanner engine + web application**
+
+https://github.com/peterkehinde673/GitHub-Security-Scanner
+
+**GitHub Actions integration**
+
+https://github.com/peterkehinde673/github-security-scanner-action
+
+**Hosted scanner**
+
+https://github-security-scanner.onrender.com/
+
+---
+
+## Security disclosure
+
+Please do not publish sensitive vulnerability details in a normal issue. See [`SECURITY.md`](SECURITY.md) for the preferred reporting process.
+
+## Status and scope
+
+This project is actively evolving. The scanner currently focuses on public repositories and deterministic static analysis. Detection coverage will expand over time, but findings should always be reviewed in the context of the actual application.
+
+## Contributing
+
+Bug reports, detection improvements, documentation fixes, and carefully scoped pull requests are welcome. Before contributing security-sensitive changes, read [`SECURITY.md`](SECURITY.md).
